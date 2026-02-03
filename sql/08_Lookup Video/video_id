@@ -1,0 +1,7 @@
+SELECT
+  COUNT(*) AS events_with_video_id,
+  COUNTIF(lv.video_id IS NULL) AS missing_video_lookup
+FROM `max_ic4_raw.mixpanel_events_sync` e
+LEFT JOIN `max_ic4_raw.lookup_video_id` lv
+  ON e.video_id = lv.video_id
+WHERE e.video_id IS NOT NULL;
