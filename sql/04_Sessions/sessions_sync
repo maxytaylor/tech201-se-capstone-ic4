@@ -1,0 +1,11 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.mixpanel_sessions_sync` AS
+SELECT
+  s.session_id,
+  s.uuid,
+  s.start_time,
+  s.end_time,
+  s.event_count,
+  m.user_id
+FROM `max_ic4_raw.max_raw_sessions` s
+LEFT JOIN `max_ic4_raw.idmap_session_to_user` m
+  ON s.session_id = m.session_id;
