@@ -1,0 +1,49 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.mixpanel_sessions_enriched` AS
+WITH primary_device AS (
+  SELECT
+    s.session_id,
+    r.device_id
+  FROM `max_ic4_raw.mixpanel_sessions_sync` s
+  JOIN (
+    SELECT
+      s.session_id,
+      e.device_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY s.session_id
+        ORDER BY COUNT(*) DESC, MAX(e.event_time) DESC
+      ) AS rn
+    FROM `max_ic4_raw.mixpanel_sessions_sync` s
+    JOIN `max_ic4_raw.mixpanel_events_sync` e
+      ON e.user_id = s.user_id
+     AND e.event_time >= s.start_time
+     AND e.event_time <  s.end_time
+     AND e.device_id IS NOT NULL
+    GROUP BY s.session_id, e.device_id
+  ) r
+    ON s.session_id = r.session_id
+   AND r.rn = 1
+),
+fallback_device AS (
+  SELECT
+    user_id,
+    ARRAY_AGG(device_id ORDER BY event_time DESC LIMIT 1)[OFFSET(0)] AS device_id
+  FROM `max_ic4_raw.mixpanel_events_sync`
+  WHERE device_id IS NOT NULL
+  GROUP BY user_id
+)
+SELECT
+  s.session_id,
+  s.uuid,
+  s.start_time,
+  s.end_time,
+  s.event_count,
+  s.user_id,
+
+  COALESCE(p.device_id, f.device_id) AS device_id,
+
+  TIMESTAMP_DIFF(s.end_time, s.start_time, SECOND) AS session_duration_sec
+FROM `max_ic4_raw.mixpanel_sessions_sync` s
+LEFT JOIN primary_device p
+  ON s.session_id = p.session_id
+LEFT JOIN fallback_device f
+  ON s.user_id = f.user_id;
