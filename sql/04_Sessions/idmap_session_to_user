@@ -1,0 +1,7 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.idmap_session_to_user` AS
+SELECT
+  sid AS session_id,
+  u.user_id
+FROM `max_ic4_raw.mixpanel_users_sync_flat` u,
+UNNEST(u.sessionIds) AS sid
+WHERE sid IS NOT NULL;
