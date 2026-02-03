@@ -1,0 +1,41 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.mixpanel_sessions_enriched` AS
+WITH session_devices AS (
+  SELECT
+    s.session_id,
+    s.user_id,
+    e.device_id,
+    COUNT(*) AS device_event_count,
+    MAX(e.event_time) AS last_event_time
+  FROM `max_ic4_raw.mixpanel_sessions_sync` s
+  JOIN `max_ic4_raw.mixpanel_events_sync` e
+    ON e.user_id = s.user_id
+   AND e.event_time >= s.start_time
+   AND e.event_time <  s.end_time
+   AND e.device_id IS NOT NULL
+  GROUP BY s.session_id, s.user_id, e.device_id
+),
+ranked AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY session_id
+      ORDER BY device_event_count DESC, last_event_time DESC, device_id
+    ) AS rn
+  FROM session_devices
+)
+SELECT
+  s.session_id,
+  s.uuid,
+  s.start_time,
+  s.end_time,
+  s.event_count,
+  s.user_id,
+
+  r.device_id AS device_id,
+
+  -- helpful session props
+  TIMESTAMP_DIFF(s.end_time, s.start_time, SECOND) AS session_duration_sec
+FROM `max_ic4_raw.mixpanel_sessions_sync` s
+LEFT JOIN ranked r
+  ON s.session_id = r.session_id
+ AND r.rn = 1;
