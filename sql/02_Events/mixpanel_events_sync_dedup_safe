@@ -1,0 +1,28 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.mixpanel_events_sync_dedup_safe` AS
+SELECT
+  -- Golden distinct ID (Mixpanel-aligned)
+  CASE
+    WHEN e.auth_uuid IS NOT NULL THEN e.auth_uuid
+    WHEN w.user_id IS NOT NULL THEN w.user_id
+    ELSE e.client_id
+  END AS golden_distinct_id,
+
+  -- How the ID was resolved (debugging / QA)
+  CASE
+    WHEN e.auth_uuid IS NOT NULL THEN 'authenticated'
+    WHEN w.user_id IS NOT NULL THEN 'mapped_by_device_window'
+    ELSE 'pure_anonymous'
+  END AS resolution_type,
+
+  -- Optional: keep this for debugging joins
+  w.user_id        AS mapped_user_id,
+  w.window_start_ts,
+  w.window_end_ts,
+
+  -- Original event payload
+  e.*
+FROM `max_ic4_raw.max_raw_events` e
+LEFT JOIN `max_ic4_raw.idmap_device_user_windows` w
+  ON e.client_id = w.device_id
+ AND e.occured_at >= w.window_start_ts
+ AND (e.occured_at < w.window_end_ts OR w.window_end_ts IS NULL);
