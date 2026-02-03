@@ -1,0 +1,58 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.mixpanel_users_sync_flat` AS
+WITH base AS (
+  SELECT
+    COALESCE(m.user_id, u.distinct_id) AS user_id,
+    CASE
+      WHEN m.user_id IS NOT NULL THEN 'mapped_to_auth_uuid'
+      ELSE 'fallback_to_profile_distinct_id'
+    END AS id_resolution_type,
+
+    u.*
+  FROM `max_ic4_raw.max_raw_users` u
+  LEFT JOIN `max_ic4_raw.idmap_profile_to_user` m
+    ON u.distinct_id = m.profile_distinct_id
+)
+SELECT
+  -- identity
+  user_id,
+  id_resolution_type,
+
+  -- core user props (keep whatever you care about)
+  name,
+  email,
+  title,
+  city,
+  region,
+  country,
+  country_code,
+  ip,
+  avatar,
+  created,
+  luckyNumber,
+  spiritAnimal,
+
+  -- timezone flattened
+  timezone.text   AS timezone_text,
+  timezone.name   AS timezone_name,
+  timezone.abbr   AS timezone_abbr,
+  timezone.offset AS timezone_offset,
+  timezone.isdst  AS timezone_isdst,
+
+  -- experiment flattened (summary string)
+  (
+    SELECT STRING_AGG(
+      CONCAT(
+        COALESCE(experiment, ''),
+        ':',
+        COALESCE(variant, '')
+      ),
+      ', '
+      ORDER BY COALESCE(experiment, ''), COALESCE(variant, '')
+    )
+    FROM UNNEST(experiment)
+  ) AS experiments_summary,
+
+  -- keep these only if you still want them in Mixpanel as arrays
+  sessionIds
+
+FROM base;
