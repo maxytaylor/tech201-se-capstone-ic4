@@ -1,0 +1,7 @@
+SELECT
+  COUNT(*) AS events_with_product_id,
+  COUNTIF(lp.product_id IS NULL) AS missing_product_lookup
+FROM `max_ic4_raw.mixpanel_events_sync` e
+LEFT JOIN `max_ic4_raw.lookup_product_id` lp
+  ON e.product_id = lp.product_id
+WHERE e.product_id IS NOT NULL;
