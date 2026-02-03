@@ -1,0 +1,8 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.id_bridge_identify_events` AS
+SELECT
+  CAST(client_id AS STRING)        AS device_id,
+  CAST(auth_uuid AS STRING)        AS user_id,
+  occured_at                       AS identify_ts
+FROM `max_ic4_raw.max_raw_events`
+WHERE client_id IS NOT NULL
+  AND auth_uuid IS NOT NULL;
