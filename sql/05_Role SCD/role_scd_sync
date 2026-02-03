@@ -1,0 +1,15 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.mixpanel_role_scd_sync` AS
+SELECT
+  COALESCE(m.user_id, s.distinct_id) AS user_id,
+  CASE
+    WHEN m.user_id IS NOT NULL THEN 'mapped_to_auth_uuid'
+    ELSE 'fallback_to_profile_distinct_id'
+  END AS id_resolution_type,
+
+  s.role,
+  s.startTime,
+  s.time,
+  s.insertTime
+FROM `max_ic4_raw.dim_role_scd` s
+LEFT JOIN `max_ic4_raw.idmap_profile_to_user` m
+  ON s.distinct_id = m.profile_distinct_id;
