@@ -1,0 +1,15 @@
+CREATE OR REPLACE TABLE `max_ic4_raw.idmap_device_user_windows` AS
+WITH ordered AS (
+  SELECT
+    device_id,
+    user_id,
+    identify_ts,
+    LEAD(identify_ts) OVER (PARTITION BY device_id ORDER BY identify_ts) AS next_identify_ts
+  FROM `max_ic4_raw.id_bridge_identify_events`
+)
+SELECT
+  device_id,
+  user_id,
+  identify_ts AS window_start_ts,
+  next_identify_ts AS window_end_ts
+FROM ordered;
